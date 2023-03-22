@@ -12,24 +12,32 @@ os.makedirs('comics',exist_ok = True)
 # Get the latest comic number
 res = session.get(BASE_URL, follow_redirects=True)
 latest_comic_number = re.search(r'<a href="https://xkcd.com/(.*?)">', res.text).group(1)
-latest_comic_number = int(latest_comic_number) + 1
+latest_comic_number = int(latest_comic_number)
 
-# Get the amount of comics in the './comics/' folder
-comics_in_folder = len(os.listdir('comics')) 
+# Get the most recent comic number in the folder
+comics_in_folder = 0
+for file in os.listdir('comics'):
+    if file.endswith('.jpg'):
+        comics_in_folder = max(comics_in_folder, int(file.split()[0]))
+        
+if comics_in_folder == latest_comic_number:
+    print('All comics are up to date')
+    session.close()
 
 # Download the comics
-for comic_num in range(comics_in_folder + 2, latest_comic_number):
+for comic_num in range(comics_in_folder + 2, latest_comic_number + 1):
     
     res = session.get(f'{BASE_URL}/{comic_num}')
     if res.status_code != 200:
+        print(f'Skipped #{comic_num} (Status code {res.status_code})')
         continue
     
-    # This comic is an interactive one, so we skip it
-    if 'panel' in res.text:
+    try: # If this errors it is probably an interactive comic and we skip it
+        img_src = re.search(r'<img src="(.*?)" title="', res.text).group(1)
+        img_src = img_src.replace('//', 'https://')
+    except AttributeError:
+        print(f'Skipped #{comic_num} (Interactive comic)')
         continue
-
-    img_src = re.search(r'<img src="(.*?)" title="', res.text).group(1)
-    img_src = img_src.replace('//', 'https://')
 
     comic_title = re.search(r'<div id="ctitle">(.*?)</div>', res.text).group(1)
     comic_title = re.sub(r'[\\/:*?"<>|]', '', comic_title) # Remove illegal file name characters
