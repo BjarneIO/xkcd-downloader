@@ -29,14 +29,14 @@ for comic_num in range(comics_in_folder + 1, latest_comic_number + 1):
     
     res = session.get(f'{BASE_URL}/{comic_num}')
     if res.status_code != 200:
-        print(f'Skipped comic #{comic_num} (Status code {res.status_code})')
+        print(f'Skipped #{comic_num} (Status code {res.status_code})')
         continue
     
     try: # If this errors it is probably an interactive comic and we skip it
         img_src = re.search(r'<img src="(.*?)" title="', res.text).group(1)
         img_src = img_src.replace('//', 'https://')
     except AttributeError:
-        print(f'Skipped comic #{comic_num} (Interactive comic)')
+        print(f'Skipped #{comic_num} (Interactive comic)')
         continue
 
     comic_title = re.search(r'<div id="ctitle">(.*?)</div>', res.text).group(1)
@@ -48,10 +48,10 @@ for comic_num in range(comics_in_folder + 1, latest_comic_number + 1):
         with open(os.path.join('comics', f'{comic_file_name}.jpg'), 'wb') as f:
             f.write(session.get(img_src).content)
     except httpx.UnsupportedProtocol:
-        print(f'Skipped comic #{comic_num} (Unsupported protocol) (Probably an interactive comic)')
+        print(f'Skipped #{comic_num} (Unsupported protocol) (Probably an interactive comic)')
         os.remove(os.path.join('comics', f'{comic_file_name}.jpg'))
         continue
     
-    print(f'Downloaded comic #{comic_file_name}')
+    print(f'Downloaded #{comic_file_name}')
     
 session.close()
