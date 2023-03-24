@@ -10,12 +10,14 @@ def get_latest_comic_number(session:httpx.Client) -> int:
     ''' Get the latest comic number '''
     res = session.get(BASE_URL)
     latest_comic_number = re.search(rf'<a href="{BASE_URL}/(.*?)">', res.text).group(1)
+    
     return int(latest_comic_number)
 
 def get_latest_local_comic() -> int:
     ''' Get the most recent comic number in the folder '''
     comics_in_folder = [int(file.split()[0]) for file in os.listdir('comics') if file.endswith('.jpg')]
     most_recent_comic_number = max(comics_in_folder) if comics_in_folder else 0
+    
     return most_recent_comic_number
 
 def get_comic_data(session:httpx.Client, comic_num:int) -> dict:
