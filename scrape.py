@@ -1,10 +1,12 @@
 import os
 import re
 import httpx
+import threading
 
 BASE_URL = 'https://xkcd.com'
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36'}
 COMIC_FOLDER = 'comics'
+
 
 def get_latest_comic_number(session:httpx.Client) -> int:
     ''' Get the latest comic number '''
@@ -30,6 +32,22 @@ def get_comic_data(session:httpx.Client, comic_num:int) -> dict:
     
     return res.json()
 
+def download_comic(session, comic_num):
+    comic_data = get_comic_data(session, comic_num)
+        
+    if not comic_data or 'extra_parts' in comic_data:
+        print(f'Skipped #{comic_num}')
+        return
+
+    img_src = comic_data['img']
+    comic_title = re.sub(r'[\\/:*?"<>|]', '', comic_data['safe_title'])
+    comic_file_name = f'{comic_num} {comic_title}.png'
+
+    with open(os.path.join(COMIC_FOLDER, f'{comic_file_name}'), 'wb') as f:
+        f.write(session.get(img_src).content)
+
+    print(f'Downloaded #{comic_num} ({comic_title})')
+
 def main(): 
     
     session = httpx.Client(headers=HEADERS, follow_redirects=True)
@@ -46,24 +64,17 @@ def main():
         session.close()
         return
     
+    # Create threads for downloading comics
+    threads = []
     for comic_num in range(most_recent_comic_number + 1, latest_comic_number + 1):
-        print(f'Downloading #{comic_num}')
-        
-        comic_data = get_comic_data(session, comic_num)
-        
-        if not comic_data or 'extra_parts' in comic_data:
-            print(f'Skipped #{comic_num}')
-            continue
-    
-        img_src = comic_data['img']
-        comic_title = comic_data['safe_title']
-        comic_file_name = f'{comic_num} {comic_title}.png'
-    
-        with open(os.path.join(COMIC_FOLDER, f'{comic_file_name}.jpg'), 'wb') as f:
-            f.write(session.get(img_src).content)
-            
-        print(f'Downloaded #{comic_num} ({comic_title})')
-    
+        thread = threading.Thread(target=download_comic, args=(session, comic_num))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for threads to finish
+    for thread in threads:
+        thread.join()
+
     session.close()
     
 if __name__ == '__main__':
