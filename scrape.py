@@ -5,53 +5,64 @@ import httpx
 BASE_URL = 'https://xkcd.com'
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36'}
 
-session = httpx.Client(headers=HEADERS, follow_redirects=True)
 
-os.makedirs('comics',exist_ok = True)
+def get_latest_comic_number(session:httpx.Client) -> int:
+    ''' Get the latest comic number '''
+    res = session.get(BASE_URL)
+    latest_comic_number = re.search(rf'<a href="{BASE_URL}/(.*?)">', res.text).group(1)
+    return int(latest_comic_number)
 
-# Get the latest comic number
-res = session.get(BASE_URL, follow_redirects=True)
-latest_comic_number = re.search(r'<a href="https://xkcd.com/(.*?)">', res.text).group(1)
-latest_comic_number = int(latest_comic_number)
+def get_latest_local_comic() -> int:
+    ''' Get the most recent comic number in the folder '''
+    comics_in_folder = [int(file.split()[0]) for file in os.listdir('comics') if file.endswith('.jpg')]
+    most_recent_comic_number = max(comics_in_folder) if comics_in_folder else 0
+    return most_recent_comic_number
 
-# Get the most recent comic number in the folder
-comics_in_folder = 0
-for file in os.listdir('comics'):
-    if file.endswith('.jpg'):
-        comics_in_folder = max(comics_in_folder, int(file.split()[0]))
-        
-if comics_in_folder == latest_comic_number:
-    print('All comics are up to date')
-    session.close()
-
-# Download the comics
-for comic_num in range(comics_in_folder + 1, latest_comic_number + 1):
+def get_comic_data(session:httpx.Client, comic_num:int) -> dict:
+    ''' Get the comic data '''
+    res = session.get(f'{BASE_URL}/{comic_num}/info.0.json')
     
-    res = session.get(f'{BASE_URL}/{comic_num}')
     if res.status_code != 200:
         print(f'Skipped #{comic_num} (Status code {res.status_code})')
-        continue
+        return None
     
-    try: # If this errors it is probably an interactive comic and we skip it
-        img_src = re.search(r'<img src="(.*?)" title="', res.text).group(1)
-        img_src = img_src.replace('//', 'https://')
-    except AttributeError:
-        print(f'Skipped #{comic_num} (Interactive comic)')
-        continue
+    return res.json()
 
-    comic_title = re.search(r'<div id="ctitle">(.*?)</div>', res.text).group(1)
-    comic_title = re.sub(r'[\\/:*?"<>|]', '', comic_title) # Remove illegal file name characters
+def main(): 
+    
+    session = httpx.Client(headers=HEADERS, follow_redirects=True)
+    os.makedirs('comics', exist_ok = True)
 
-    # Download and save the image
-    try:
-        comic_file_name = f'{comic_num} {comic_title}'
+    latest_comic_number = get_latest_comic_number(session)
+    most_recent_comic_number = get_latest_local_comic()
+            
+    print(f'Latest comic: #{latest_comic_number}')
+    print(f'Comics in folder: #{most_recent_comic_number}')
+
+    if most_recent_comic_number == latest_comic_number:
+        print('All comics are up to date')
+        session.close()
+        return
+    
+    for comic_num in range(most_recent_comic_number + 1, latest_comic_number + 1):
+        print(f'Downloading #{comic_num}')
+        
+        comic_data = get_comic_data(session, comic_num)
+        
+        if not comic_data or 'extra_parts' in comic_data:
+            print(f'Skipped #{comic_num}')
+            continue
+    
+        img_src = comic_data['img']
+        comic_title = comic_data['safe_title']
+        comic_file_name = f'{comic_num} {comic_title}.png'
+    
         with open(os.path.join('comics', f'{comic_file_name}.jpg'), 'wb') as f:
             f.write(session.get(img_src).content)
-    except httpx.UnsupportedProtocol:
-        print(f'Skipped #{comic_num} (Unsupported protocol) (Probably an interactive comic)')
-        os.remove(os.path.join('comics', f'{comic_file_name}.jpg'))
-        continue
+            
+        print(f'Downloaded #{comic_num} ({comic_title})')
     
-    print(f'Downloaded #{comic_file_name}')
+    session.close()
     
-session.close()
+if __name__ == '__main__':
+    main()
