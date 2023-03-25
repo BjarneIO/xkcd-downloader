@@ -15,7 +15,7 @@ def get_latest_comic_number(session:httpx.Client) -> int:
 
 def get_latest_local_comic() -> int:
     ''' Get the most recent comic number in the folder '''
-    comics_in_folder = [int(file.split()[0]) for file in os.listdir(COMIC_FOLDER) if file.endswith('.jpg')]
+    comics_in_folder = [int(file.split()[0]) for file in os.listdir(COMIC_FOLDER) if file.endswith('.png')]
     most_recent_comic_number = max(comics_in_folder) if comics_in_folder else 0
     
     return most_recent_comic_number
