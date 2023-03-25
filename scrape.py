@@ -86,7 +86,8 @@ def main():
         thread.join()
 
     end_time = perf_counter()
-    print(f'Downloaded {latest_comic_number - most_recent_comic_number} comics in {end_time - start_time:.2f} seconds. ({(end_time - start_time) / (latest_comic_number - most_recent_comic_number):.2f} seconds per comic')
+    print(
+        f'Downloaded {latest_comic_number - most_recent_comic_number} comics in {end_time - start_time: .2f} seconds.')
 
     session.close()
 
