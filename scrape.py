@@ -1,5 +1,4 @@
 import os
-import re
 import httpx
 from time import perf_counter
 
@@ -11,11 +10,8 @@ COMIC_FOLDER = 'comics'
 
 def get_latest_comic_number(session: httpx.Client) -> int:
     ''' Get the latest comic number '''
-    res = session.get(BASE_URL)
-    latest_comic_number = re.search(
-        rf'<a href="{BASE_URL}/(.*?)">', res.text).group(1)
-
-    return int(latest_comic_number)
+    res = session.get(f'{BASE_URL}/info.0.json').json()
+    return int(res['num'])
 
 
 def get_latest_local_comic() -> int:
