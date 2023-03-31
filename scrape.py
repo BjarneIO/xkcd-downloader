@@ -43,7 +43,7 @@ def download_comic(session, comic_num):
         return
 
     img_src = comic_data['img']
-    comic_title = re.sub(r'[\\/:*?"<>|]', '', comic_data['safe_title'])
+    comic_title = comic_data['safe_title']
     comic_file_name = f'{comic_num} {comic_title}.png'
 
     with open(os.path.join(COMIC_FOLDER, f'{comic_file_name}'), 'wb') as f:
